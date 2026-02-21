@@ -31,6 +31,12 @@ out/
 
 # MacOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
 
 # Logs
 *.log
