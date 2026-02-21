@@ -38,3 +38,4 @@ out/
 # Temporary files
 *.tmp
 *.bak
+.metals/
