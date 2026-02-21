@@ -1,3 +1,14 @@
+error id: file://<HOME>/Documents/Projects/COEN-6761%20(Software_Testing_and_Validation_Project)/src/test/java/coen6761/project/RobotMotionTest.java:RobotMotion/Engine#state#facing#left#
+file://<HOME>/Documents/Projects/COEN-6761%20(Software_Testing_and_Validation_Project)/src/test/java/coen6761/project/RobotMotionTest.java
+empty definition using pc, found symbol in pc: RobotMotion/Engine#state#facing#left#
+empty definition using semanticdb
+empty definition using fallback
+non-local guesses:
+
+offset: 753
+uri: file://<HOME>/Documents/Projects/COEN-6761%20(Software_Testing_and_Validation_Project)/src/test/java/coen6761/project/RobotMotionTest.java
+text:
+```scala
 package coen6761.project;
 
 import org.junit.jupiter.api.Test;
@@ -26,7 +37,7 @@ class RobotMotionTest {
     @Test
     void testTurnLeft() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = e.state.facing.left();
+        e.state.facing = e.state.facing.@@left();
         assertEquals(RobotMotion.Direction.WEST, e.state.facing);
     }
 
@@ -452,24 +463,11 @@ class RobotMotionTest {
         // Position should remain valid
         assertTrue(e.state.x >= 0 && e.state.y >= 0);
     }
-    @Test
-    void testPrintOutputShowsIndicesAndCorrectAsterisksForSamplePath() {
-    RobotMotion.Engine e = new RobotMotion.Engine(10);
-    e.state.penDown = true;   
-    e.move(4);                
-    e.state.facing = e.state.facing.right(); 
-    e.move(3);                
-    for (int y = 0; y <= 4; y++) {
-        assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
-    }
-    for (int x = 0; x <= 3; x++) {
-        assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
-    }
-    String out = e.floor.print();
-    assertTrue(out.contains(" 0"), "Output should include column indices");
-    assertTrue(out.contains(" 9"), "Output should include column indices up to 9 for 10x10");
-    assertTrue(out.contains(" 4 |"), "Output should include row index with separator like ' 4 |'");
-    long starCount = out.chars().filter(ch -> ch == '*').count();
-    assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
+    
 }
-}
+```
+
+
+#### Short summary: 
+
+empty definition using pc, found symbol in pc: RobotMotion/Engine#state#facing#left#
