@@ -8,6 +8,81 @@ import java.util.List;
 
 class RobotMotionTest {
 
+    // Task-2 Starts
+    // ---- Reflection helpers for private static RobotMotion internals ----
+
+    private static java.lang.reflect.Method processCommandMethod() {
+        try {
+            var m = RobotMotion.class.getDeclaredMethod("processCommand", String.class, boolean.class);
+            m.setAccessible(true);
+            return m;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void invokeCmd(String cmd, boolean record) {
+        try {
+            processCommandMethod().invoke(null, cmd, record);
+        } catch (Exception e) {
+            // unwrap reflection exceptions
+            Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+            throw new RuntimeException(cause);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.List<String> getHistory() {
+        try {
+            var f = RobotMotion.class.getDeclaredField("history");
+            f.setAccessible(true);
+            return (java.util.List<String>) f.get(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static RobotMotion.Engine getEngine() {
+        try {
+            var f = RobotMotion.class.getDeclaredField("engine");
+            f.setAccessible(true);
+            return (RobotMotion.Engine) f.get(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void setEngine(RobotMotion.Engine newEngine) {
+        try {
+            var f = RobotMotion.class.getDeclaredField("engine");
+            f.setAccessible(true);
+            f.set(null, newEngine);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String captureStdout(Runnable r) {
+        java.io.PrintStream old = System.out;
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.io.PrintStream ps = new java.io.PrintStream(baos)) {
+            System.setOut(ps);
+            r.run();
+        } finally {
+            System.setOut(old);
+        }
+        return baos.toString();
+    }
+
+    @org.junit.jupiter.api.BeforeEach
+    void resetRobotMotionStatics() {
+        // Reset engine and history to a known clean state before each test.
+        setEngine(new RobotMotion.Engine(10));
+        getHistory().clear();
+    }
+
+    // Task-2 Ends
+
     // DIRECTION OR TURNING
 
     @Test
@@ -348,7 +423,8 @@ class RobotMotionTest {
     @Test
     void testPrintCurrentStatusFormat() {
         // The 'C' command prints: "Position: x, y - Pen: up/down - Facing: direction"
-        // Since processCommand is private static, we verify the Engine state that feeds it
+        // Since processCommand is private static, we verify the Engine state that feeds
+        // it
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.state.facing = RobotMotion.Direction.EAST;
@@ -371,16 +447,21 @@ class RobotMotionTest {
     // HISTORY REPLAY RUNS COMMANDS SINCE START
     @Test
     void testHistoryReplayRunsCommands() {
-        // Since history/processCommand are private static, we simulate the replay logic:
+        // Since history/processCommand are private static, we simulate the replay
+        // logic:
         // Execute a sequence, then re-execute from scratch and verify same result
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         List<String> history = new ArrayList<>();
 
         // Execute commands and record
-        e.state.penDown = true; history.add("D");
-        e.move(3);              history.add("M 3");
-        e.state.facing = e.state.facing.right(); history.add("R");
-        e.move(2);              history.add("M 2");
+        e.state.penDown = true;
+        history.add("D");
+        e.move(3);
+        history.add("M 3");
+        e.state.facing = e.state.facing.right();
+        history.add("R");
+        e.move(2);
+        history.add("M 2");
 
         int finalX = e.state.x;
         int finalY = e.state.y;
@@ -420,7 +501,8 @@ class RobotMotionTest {
     @Test
     void testInvalidCommandHandledGracefully() {
         // processCommand handles invalid via default -> "Invalid command" print
-        // Since it's private static, we verify Engine doesn't crash on bad state manipulation
+        // Since it's private static, we verify Engine doesn't crash on bad state
+        // manipulation
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         // Engine should remain stable regardless of external command parsing
         assertDoesNotThrow(() -> e.move(3));
@@ -452,24 +534,180 @@ class RobotMotionTest {
         // Position should remain valid
         assertTrue(e.state.x >= 0 && e.state.y >= 0);
     }
+
     @Test
     void testPrintOutputShowsIndicesAndCorrectAsterisksForSamplePath() {
-    RobotMotion.Engine e = new RobotMotion.Engine(10);
-    e.state.penDown = true;   
-    e.move(4);                
-    e.state.facing = e.state.facing.right(); 
-    e.move(3);                
-    for (int y = 0; y <= 4; y++) {
-        assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(3);
+        for (int y = 0; y <= 4; y++) {
+            assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
+        }
+        for (int x = 0; x <= 3; x++) {
+            assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
+        }
+        String out = e.floor.print();
+        assertTrue(out.contains(" 0"), "Output should include column indices");
+        assertTrue(out.contains(" 9"), "Output should include column indices up to 9 for 10x10");
+        assertTrue(out.contains(" 4 |"), "Output should include row index with separator like ' 4 |'");
+        long starCount = out.chars().filter(ch -> ch == '*').count();
+        assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
     }
-    for (int x = 0; x <= 3; x++) {
-        assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
+
+    // Task-2 Starts
+    @Test
+    void testProcessCommandRecordsHistoryWhenRecordTrue() {
+        assertEquals(0, getHistory().size());
+
+        invokeCmd("D", true);
+        invokeCmd("M 2", true);
+        invokeCmd("R", true);
+
+        assertEquals(3, getHistory().size());
+        assertEquals("D", getHistory().get(0));
+        assertEquals("M 2", getHistory().get(1));
+        assertEquals("R", getHistory().get(2));
     }
-    String out = e.floor.print();
-    assertTrue(out.contains(" 0"), "Output should include column indices");
-    assertTrue(out.contains(" 9"), "Output should include column indices up to 9 for 10x10");
-    assertTrue(out.contains(" 4 |"), "Output should include row index with separator like ' 4 |'");
-    long starCount = out.chars().filter(ch -> ch == '*').count();
-    assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
-}
+
+    @Test
+    void testProcessCommandDoesNotRecordWhenRecordFalse() {
+        invokeCmd("D", false);
+        invokeCmd("M 2", false);
+        assertEquals(0, getHistory().size());
+    }
+
+    @Test
+    void testCommandDMarksCurrentCell() {
+        RobotMotion.Engine e = getEngine();
+        assertEquals(0, e.floor.grid[0][0]);
+
+        invokeCmd("D", true); // pen down + mark start cell
+
+        e = getEngine();
+        assertTrue(e.state.penDown);
+        assertEquals(1, e.floor.grid[0][0], "D should mark the starting cell");
+    }
+
+    @Test
+    void testCommandUMakesPenUp() {
+        invokeCmd("D", true);
+        assertTrue(getEngine().state.penDown);
+
+        invokeCmd("U", true);
+        assertFalse(getEngine().state.penDown);
+    }
+
+    @Test
+    void testCommandLAndRChangeFacing() {
+        RobotMotion.Engine e = getEngine();
+        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
+
+        invokeCmd("R", true);
+        assertEquals(RobotMotion.Direction.EAST, getEngine().state.facing);
+
+        invokeCmd("L", true);
+        assertEquals(RobotMotion.Direction.NORTH, getEngine().state.facing);
+
+        invokeCmd("L", true);
+        assertEquals(RobotMotion.Direction.WEST, getEngine().state.facing);
+    }
+
+    @Test
+    void testCommandMMovesRobot() {
+        RobotMotion.Engine e = getEngine();
+        assertEquals(0, e.state.x);
+        assertEquals(0, e.state.y);
+
+        invokeCmd("M 3", true);
+
+        e = getEngine();
+        assertEquals(0, e.state.x);
+        assertEquals(3, e.state.y);
+    }
+
+    @Test
+    void testCommandPPrintsFloor() {
+        // draw something first
+        invokeCmd("D", true);
+        invokeCmd("M 2", true);
+
+        String out = captureStdout(() -> invokeCmd("P", true));
+
+        // Should print the grid header with column indices
+        assertTrue(out.contains(" 0"), "P should print floor with indices");
+        assertTrue(out.contains("|"), "P output should contain row separators");
+    }
+
+    @Test
+    void testCommandCPrintsStatusLine() {
+        invokeCmd("D", true);
+        invokeCmd("R", true);
+        invokeCmd("M 2", true);
+
+        String out = captureStdout(() -> invokeCmd("C", true));
+
+        assertTrue(out.contains("Position:"), "C should print status");
+        assertTrue(out.toLowerCase().contains("pen:"), "C should print pen state");
+        assertTrue(out.toLowerCase().contains("facing:"), "C should print facing direction");
+    }
+
+    @Test
+    void testCommandIReinitializesEngineSize() {
+        // move first so state changes
+        invokeCmd("D", true);
+        invokeCmd("M 3", true);
+        assertEquals(3, getEngine().state.y);
+
+        invokeCmd("I 5", true); // new engine with size 5
+
+        RobotMotion.Engine e = getEngine();
+        assertEquals(0, e.state.x);
+        assertEquals(0, e.state.y);
+        assertEquals(5, e.floor.n);
+    }
+
+    @Test
+    void testInvalidCommandPrintsInvalidCommand() {
+        String out = captureStdout(() -> invokeCmd("Z", true));
+        assertTrue(out.toLowerCase().contains("invalid command"));
+    }
+
+    @Test
+    void testInvalidMoveArgumentTriggersErrorCatch() {
+        // This must go through the catch(Exception e) block in processCommand
+        String out = captureStdout(() -> invokeCmd("M abc", true));
+        assertTrue(out.toLowerCase().contains("error:"), "Should print Error: ... for invalid integer");
+    }
+
+    @Test
+    void testHistoryReplayHReplaysCommandsFromStart() {
+        // Build history with record=true
+        invokeCmd("D", true);
+        invokeCmd("M 3", true);
+        invokeCmd("R", true);
+        invokeCmd("M 2", true);
+
+        // At this point, engine should be at (2,3)
+        assertEquals(2, getEngine().state.x);
+        assertEquals(3, getEngine().state.y);
+
+        // Now execute H: it resets engine and replays history (record=false during
+        // replay)
+        String out = captureStdout(() -> invokeCmd("H", true));
+
+        // after replay, engine should end up same final position
+        assertEquals(2, getEngine().state.x);
+        assertEquals(3, getEngine().state.y);
+
+        // Also verify it printed the replay messages
+        assertTrue(out.contains(">Replaying:"), "H should print replay lines");
+
+        // History should still contain original commands + "H" (because record=true on
+        // H)
+        assertTrue(getHistory().contains("H"));
+    }
+    // Task-2 Ends
+
 }
