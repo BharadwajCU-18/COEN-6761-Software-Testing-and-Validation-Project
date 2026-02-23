@@ -1,6 +1,9 @@
 package coen6761.project;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
@@ -10,57 +13,43 @@ class RobotMotionTest {
 
     // DIRECTION OR TURNING
 
-    @Test
-    void testInitialDirectionIsNorth() {
+    @ParameterizedTest
+    @CsvSource({
+            "NORTH, right, EAST",
+            "EAST, right, SOUTH",
+            "SOUTH, right, WEST",
+            "WEST, right, NORTH",
+            "NORTH, left, WEST",
+            "WEST, left, SOUTH",
+            "SOUTH, left, EAST",
+            "EAST, left, NORTH"
+    })
+    void testTurning(RobotMotion.Direction start, String turn, RobotMotion.Direction expected) {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
+        e.state.facing = start;
+        if (turn.equals("right"))
+            e.state.facing = e.state.facing.right();
+        else
+            e.state.facing = e.state.facing.left();
+        assertEquals(expected, e.state.facing);
     }
 
-    @Test
-    void testTurnRight() {
+    @ParameterizedTest
+    @CsvSource({
+            "NORTH, right, 4, NORTH",
+            "NORTH, left, 4, NORTH",
+            "NORTH, right, 2, SOUTH"
+    })
+    void testMultipleTurns(RobotMotion.Direction start, String turn, int count, RobotMotion.Direction expected) {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = e.state.facing.right();
-        assertEquals(RobotMotion.Direction.EAST, e.state.facing);
-    }
-
-    @Test
-    void testTurnLeft() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = e.state.facing.left();
-        assertEquals(RobotMotion.Direction.WEST, e.state.facing);
-    }
-
-    @Test
-    void testFullRotationRight() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = e.state.facing.right().right().right().right();
-        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
-    }
-
-    @Test
-    void testFullRotationLeft() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = e.state.facing.left().left().left().left();
-        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
-    }
-
-    @Test
-    void testTurnRightThenLeft() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = e.state.facing.right().left();
-        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
-    }
-
-    @Test
-    void testAllDirectionsClockwise() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
-        e.state.facing = e.state.facing.right();
-        assertEquals(RobotMotion.Direction.EAST, e.state.facing);
-        e.state.facing = e.state.facing.right();
-        assertEquals(RobotMotion.Direction.SOUTH, e.state.facing);
-        e.state.facing = e.state.facing.right();
-        assertEquals(RobotMotion.Direction.WEST, e.state.facing);
+        e.state.facing = start;
+        for (int i = 0; i < count; i++) {
+            if (turn.equals("right"))
+                e.state.facing = e.state.facing.right();
+            else
+                e.state.facing = e.state.facing.left();
+        }
+        assertEquals(expected, e.state.facing);
     }
 
     // INITIAL STATE
@@ -137,73 +126,37 @@ class RobotMotionTest {
 
     // MOVEMENT IN ALL DIRECTIONS
 
-    @Test
-    void testMoveNorth() {
+    @ParameterizedTest
+    @CsvSource({
+            "NORTH, 3, 0, 0, 0, 3",
+            "EAST, 3, 0, 0, 3, 0",
+            "SOUTH, 2, 0, 4, 0, 2",
+            "WEST, 2, 4, 0, 2, 0"
+    })
+    void testMoveDirections(RobotMotion.Direction dir, int steps, int startX, int startY, int expectedX,
+            int expectedY) {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.move(3);
-        assertEquals(0, e.state.x);
-        assertEquals(3, e.state.y);
+        e.state.x = startX;
+        e.state.y = startY;
+        e.state.facing = dir;
+        e.move(steps);
+        assertEquals(expectedX, e.state.x);
+        assertEquals(expectedY, e.state.y);
     }
 
-    @Test
-    void testMoveEast() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = RobotMotion.Direction.EAST;
-        e.move(3);
-        assertEquals(3, e.state.x);
-        assertEquals(0, e.state.y);
-    }
-
-    @Test
-    void testMoveSouth() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.move(4); // go north to (0,4)
-        e.state.facing = RobotMotion.Direction.SOUTH;
-        e.move(2);
-        assertEquals(0, e.state.x);
-        assertEquals(2, e.state.y);
-    }
-
-    @Test
-    void testMoveWest() {
-        RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.state.facing = RobotMotion.Direction.EAST;
-        e.move(4); // go east to (4,0)
-        e.state.facing = RobotMotion.Direction.WEST;
-        e.move(2);
-        assertEquals(2, e.state.x);
-        assertEquals(0, e.state.y);
-    }
-
-    @Test
-    void testBoundaryStopNorth() {
-        RobotMotion.Engine e = new RobotMotion.Engine(2);
-        e.move(10);
-        assertEquals(1, e.state.y);
-    }
-
-    @Test
-    void testBoundaryStopEast() {
-        RobotMotion.Engine e = new RobotMotion.Engine(3);
-        e.state.facing = RobotMotion.Direction.EAST;
-        e.move(100);
-        assertEquals(2, e.state.x);
-    }
-
-    @Test
-    void testBoundaryStopSouth() {
-        RobotMotion.Engine e = new RobotMotion.Engine(3);
-        e.state.facing = RobotMotion.Direction.SOUTH;
-        e.move(5);
-        assertEquals(0, e.state.y); // already at bottom
-    }
-
-    @Test
-    void testBoundaryStopWest() {
-        RobotMotion.Engine e = new RobotMotion.Engine(3);
-        e.state.facing = RobotMotion.Direction.WEST;
-        e.move(5);
-        assertEquals(0, e.state.x); // already at left edge
+    @ParameterizedTest
+    @CsvSource({
+            "2, NORTH, 10, 0, 1",
+            "3, EAST, 100, 2, 0",
+            "3, SOUTH, 5, 0, 0",
+            "3, WEST, 5, 0, 0"
+    })
+    void testBoundaryStops(int size, RobotMotion.Direction dir, int steps, int expectedX, int expectedY) {
+        RobotMotion.Engine e = new RobotMotion.Engine(size);
+        e.state.facing = dir;
+        e.move(steps);
+        assertEquals(expectedX, e.state.x);
+        assertEquals(expectedY, e.state.y);
     }
 
     @Test
@@ -348,7 +301,8 @@ class RobotMotionTest {
     @Test
     void testPrintCurrentStatusFormat() {
         // The 'C' command prints: "Position: x, y - Pen: up/down - Facing: direction"
-        // Since processCommand is private static, we verify the Engine state that feeds it
+        // Since processCommand is private static, we verify the Engine state that feeds
+        // it
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.state.facing = RobotMotion.Direction.EAST;
@@ -371,16 +325,21 @@ class RobotMotionTest {
     // HISTORY REPLAY RUNS COMMANDS SINCE START
     @Test
     void testHistoryReplayRunsCommands() {
-        // Since history/processCommand are private static, we simulate the replay logic:
+        // Since history/processCommand are private static, we simulate the replay
+        // logic:
         // Execute a sequence, then re-execute from scratch and verify same result
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         List<String> history = new ArrayList<>();
 
         // Execute commands and record
-        e.state.penDown = true; history.add("D");
-        e.move(3);              history.add("M 3");
-        e.state.facing = e.state.facing.right(); history.add("R");
-        e.move(2);              history.add("M 2");
+        e.state.penDown = true;
+        history.add("D");
+        e.move(3);
+        history.add("M 3");
+        e.state.facing = e.state.facing.right();
+        history.add("R");
+        e.move(2);
+        history.add("M 2");
 
         int finalX = e.state.x;
         int finalY = e.state.y;
@@ -420,7 +379,8 @@ class RobotMotionTest {
     @Test
     void testInvalidCommandHandledGracefully() {
         // processCommand handles invalid via default -> "Invalid command" print
-        // Since it's private static, we verify Engine doesn't crash on bad state manipulation
+        // Since it's private static, we verify Engine doesn't crash on bad state
+        // manipulation
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         // Engine should remain stable regardless of external command parsing
         assertDoesNotThrow(() -> e.move(3));
@@ -452,24 +412,43 @@ class RobotMotionTest {
         // Position should remain valid
         assertTrue(e.state.x >= 0 && e.state.y >= 0);
     }
+
     @Test
     void testPrintOutputShowsIndicesAndCorrectAsterisksForSamplePath() {
-    RobotMotion.Engine e = new RobotMotion.Engine(10);
-    e.state.penDown = true;   
-    e.move(4);                
-    e.state.facing = e.state.facing.right(); 
-    e.move(3);                
-    for (int y = 0; y <= 4; y++) {
-        assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(3);
+        for (int y = 0; y <= 4; y++) {
+            assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
+        }
+        for (int x = 0; x <= 3; x++) {
+            assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
+        }
+        String out = e.floor.print();
+        assertTrue(out.contains(" 0"), "Output should include column indices");
+        assertTrue(out.contains(" 9"), "Output should include column indices up to 9 for 10x10");
+        assertTrue(out.contains(" 4 |"), "Output should include row index with separator like ' 4 |'");
+        long starCount = out.chars().filter(ch -> ch == '*').count();
+        assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
     }
-    for (int x = 0; x <= 3; x++) {
-        assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
+
+    @RepeatedTest(10)
+    void testRandomMovementStaysInBounds() {
+        int size = 10;
+        RobotMotion.Engine e = new RobotMotion.Engine(size);
+        java.util.Random rand = new java.util.Random();
+        for (int i = 0; i < 100; i++) {
+            int action = rand.nextInt(3);
+            if (action == 0)
+                e.state.facing = e.state.facing.right();
+            else if (action == 1)
+                e.state.facing = e.state.facing.left();
+
+            e.move(rand.nextInt(size * 2)); // move potentially beyond boundary
+            assertTrue(e.state.x >= 0 && e.state.x < size, "x out of bounds at " + e.state.x);
+            assertTrue(e.state.y >= 0 && e.state.y < size, "y out of bounds at " + e.state.y);
+        }
     }
-    String out = e.floor.print();
-    assertTrue(out.contains(" 0"), "Output should include column indices");
-    assertTrue(out.contains(" 9"), "Output should include column indices up to 9 for 10x10");
-    assertTrue(out.contains(" 4 |"), "Output should include row index with separator like ' 4 |'");
-    long starCount = out.chars().filter(ch -> ch == '*').count();
-    assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
-}
 }
