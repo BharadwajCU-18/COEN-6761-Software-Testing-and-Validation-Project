@@ -108,26 +108,36 @@ public class RobotMotion {
         }
     }
 
-    private static Engine engine = new Engine(10);
-    private static final List<String> history = new ArrayList<>();
+    static Engine engine = new Engine(10);
+    static final List<String> history = new ArrayList<>();
 
     /* Main */
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+        run(new Scanner(System.in));
+    }
 
+    static void run(Scanner sc) {
         System.out.println("Robot Motion Simulator");
-
-        while (true) {
+        while (sc.hasNextLine()) {
             System.out.print(">Enter command: ");
             String line = sc.nextLine().trim();
             if (line.isEmpty())
                 continue;
 
-            processCommand(line, true);
+            if (processCommand(line, true)) {
+                break;
+            }
         }
     }
 
-    private static void processCommand(String line, boolean record) {
+    static void reset() {
+        engine = new Engine(10);
+        history.clear();
+    }
+
+    static boolean processCommand(String line, boolean record) {
+        if (line == null || line.isEmpty())
+            return false;
         char cmd = Character.toUpperCase(line.charAt(0));
 
         try {
@@ -157,7 +167,7 @@ public class RobotMotion {
                 case 'I' -> engine = new Engine(Integer.parseInt(line.substring(1).trim()));
                 case 'Q' -> {
                     System.out.println("End of program");
-                    System.exit(0);
+                    return true;
                 }
                 default -> System.out.println("Invalid command");
             }
@@ -167,5 +177,6 @@ public class RobotMotion {
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
         }
+        return false;
     }
 }
