@@ -1,15 +1,18 @@
 package coen6761.project;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
 class RobotMotionTest {
 
-    // Task-2 Starts
-    // ---- Reflection helpers for private static RobotMotion internals ----
+
 
     private static java.lang.reflect.Method processCommandMethod() {
         try {
@@ -25,7 +28,6 @@ class RobotMotionTest {
         try {
             processCommandMethod().invoke(null, cmd, record);
         } catch (Exception e) {
-            // unwrap reflection exceptions
             Throwable cause = (e.getCause() != null) ? e.getCause() : e;
             throw new RuntimeException(cause);
         }
@@ -76,14 +78,11 @@ class RobotMotionTest {
 
     @org.junit.jupiter.api.BeforeEach
     void resetRobotMotionStatics() {
-        // Reset engine and history to a known clean state before each test.
         setEngine(new RobotMotion.Engine(10));
         getHistory().clear();
     }
 
-    // Task-2 Ends
-
-    // DIRECTION OR TURNING
+    
 
     @Test
     void testInitialDirectionIsNorth() {
@@ -138,7 +137,68 @@ class RobotMotionTest {
         assertEquals(RobotMotion.Direction.WEST, e.state.facing);
     }
 
-    // INITIAL STATE
+    @Test
+    void testTurnRightFromSouthGivesWest() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.SOUTH;
+        e.state.facing = e.state.facing.right();
+        assertEquals(RobotMotion.Direction.WEST, e.state.facing);
+    }
+
+    
+    @Test
+    void testTurnRightFromWestGivesNorth() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.WEST;
+        e.state.facing = e.state.facing.right();
+        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
+    }
+
+
+    @Test
+    void testTurnLeftFromEastGivesNorth() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.EAST;
+        e.state.facing = e.state.facing.left();
+        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
+    }
+
+    
+    @Test
+    void testTurnLeftFromSouthGivesEast() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.SOUTH;
+        e.state.facing = e.state.facing.left();
+        assertEquals(RobotMotion.Direction.EAST, e.state.facing);
+    }
+
+    
+    @Test
+    void testTurnLeftFromWestGivesSouth() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.WEST;
+        e.state.facing = e.state.facing.left();
+        assertEquals(RobotMotion.Direction.SOUTH, e.state.facing);
+    }
+
+   
+    @Test
+    void testThreeRightTurnsFromNorthGiveWest() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = e.state.facing.right().right().right();
+        assertEquals(RobotMotion.Direction.WEST, e.state.facing);
+    }
+
+    
+    @Test
+    void testPenStatePreservedThroughTurns() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.state.facing = e.state.facing.right().right().left();
+        assertTrue(e.state.penDown, "Pen state should not change after turning");
+    }
+
+
 
     @Test
     void testInitialPosition() {
@@ -161,7 +221,7 @@ class RobotMotionTest {
                 assertEquals(0, e.floor.grid[i][j]);
     }
 
-    // PEN UP OR PEN DOWN
+
 
     @Test
     void testMoveWithPenUp() {
@@ -188,7 +248,6 @@ class RobotMotionTest {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.move(3);
-        // Should mark cells (0,0), (0,1), (0,2), (0,3)
         assertEquals(1, e.floor.grid[0][0]);
         assertEquals(1, e.floor.grid[0][1]);
         assertEquals(1, e.floor.grid[0][2]);
@@ -202,7 +261,6 @@ class RobotMotionTest {
         e.move(2);
         e.state.penDown = false;
         e.move(2);
-        // First 3 cells marked, last 2 not
         assertEquals(1, e.floor.grid[0][0]);
         assertEquals(1, e.floor.grid[0][1]);
         assertEquals(1, e.floor.grid[0][2]);
@@ -210,7 +268,56 @@ class RobotMotionTest {
         assertEquals(0, e.floor.grid[0][4]);
     }
 
-    // MOVEMENT IN ALL DIRECTIONS
+
+    @Test
+    void testPenUpWhenAlreadyUpIsIdempotent() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        assertFalse(e.state.penDown);
+        e.state.penDown = false;
+        assertFalse(e.state.penDown);
+    }
+
+
+    @Test
+    void testPenDownWhenAlreadyDownIsIdempotent() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.state.penDown = true;
+        assertTrue(e.state.penDown);
+    }
+
+
+    @Test
+    void testMoveEastAfterPenUpDoesNotMarkFloor() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.move(2);
+        e.state.penDown = false;
+        e.state.facing = RobotMotion.Direction.EAST;
+        e.move(3);
+        assertEquals(0, e.floor.grid[1][2]);
+        assertEquals(0, e.floor.grid[2][2]);
+        assertEquals(0, e.floor.grid[3][2]);
+    }
+
+  
+    @Test
+    void testPenDownUpDownSequenceMarksCorrectly() {
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        e.state.penDown = true;
+        e.move(2);               
+        e.state.penDown = false;
+        e.move(2);               
+        e.state.penDown = true;
+        e.move(2);           
+        assertEquals(1, e.floor.grid[0][0]);
+        assertEquals(1, e.floor.grid[0][1]);
+        assertEquals(1, e.floor.grid[0][2]);
+        assertEquals(0, e.floor.grid[0][3]);
+        assertEquals(1, e.floor.grid[0][5]);
+        assertEquals(1, e.floor.grid[0][6]);
+    }
+
 
     @Test
     void testMoveNorth() {
@@ -232,7 +339,7 @@ class RobotMotionTest {
     @Test
     void testMoveSouth() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.move(4); // go north to (0,4)
+        e.move(4);
         e.state.facing = RobotMotion.Direction.SOUTH;
         e.move(2);
         assertEquals(0, e.state.x);
@@ -243,7 +350,7 @@ class RobotMotionTest {
     void testMoveWest() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.facing = RobotMotion.Direction.EAST;
-        e.move(4); // go east to (4,0)
+        e.move(4);
         e.state.facing = RobotMotion.Direction.WEST;
         e.move(2);
         assertEquals(2, e.state.x);
@@ -270,7 +377,7 @@ class RobotMotionTest {
         RobotMotion.Engine e = new RobotMotion.Engine(3);
         e.state.facing = RobotMotion.Direction.SOUTH;
         e.move(5);
-        assertEquals(0, e.state.y); // already at bottom
+        assertEquals(0, e.state.y);
     }
 
     @Test
@@ -278,7 +385,7 @@ class RobotMotionTest {
         RobotMotion.Engine e = new RobotMotion.Engine(3);
         e.state.facing = RobotMotion.Direction.WEST;
         e.move(5);
-        assertEquals(0, e.state.x); // already at left edge
+        assertEquals(0, e.state.x);
     }
 
     @Test
@@ -292,11 +399,75 @@ class RobotMotionTest {
     @Test
     void testMoveExactlyToEdge() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        e.move(4); // grid is 0-4, so 4 steps from 0 reaches edge
+        e.move(4);
         assertEquals(4, e.state.y);
     }
 
-    // COMPLEX PATHS OR INTEGRATION
+
+    @Test
+    void testMoveSouthWithPenDownMarksCorrectCells() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.move(4);
+        e.state.facing = RobotMotion.Direction.SOUTH;
+        e.state.penDown = true;
+        e.move(3);
+        assertEquals(1, e.floor.grid[0][4]);
+        assertEquals(1, e.floor.grid[0][3]);
+        assertEquals(1, e.floor.grid[0][2]);
+        assertEquals(1, e.floor.grid[0][1]);
+        assertEquals(0, e.floor.grid[0][0]);
+    }
+
+
+    @Test
+    void testMoveWestWithPenDownMarksCorrectCells() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.EAST;
+        e.move(4);
+        e.state.facing = RobotMotion.Direction.WEST;
+        e.state.penDown = true;
+        e.move(3);
+        assertEquals(1, e.floor.grid[4][0]);
+        assertEquals(1, e.floor.grid[3][0]);
+        assertEquals(1, e.floor.grid[2][0]);
+        assertEquals(1, e.floor.grid[1][0]);
+        assertEquals(0, e.floor.grid[0][0]);
+    }
+
+
+    @Test
+    void testPenDownMoveBeyondBoundaryStopsAtEdge() {
+        RobotMotion.Engine e = new RobotMotion.Engine(3);
+        e.state.penDown = true;
+        e.move(100);
+        assertEquals(2, e.state.y);
+        assertEquals(1, e.floor.grid[0][0]);
+        assertEquals(1, e.floor.grid[0][1]);
+        assertEquals(1, e.floor.grid[0][2]);
+    }
+
+
+    @Test
+    void testRobotAtNorthBoundaryCannotMoveNorthFurther() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.move(4);
+        int yBefore = e.state.y;
+        e.move(1);
+        assertEquals(yBefore, e.state.y);
+    }
+
+
+    @Test
+    void testMoveOneStepWithPenDownMarksTwoCells() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.move(1);
+        assertEquals(1, e.floor.grid[0][0]);
+        assertEquals(1, e.floor.grid[0][1]);
+        assertEquals(0, e.floor.grid[0][2]);
+    }
+
+
 
     @Test
     void testSquarePath() {
@@ -309,7 +480,6 @@ class RobotMotionTest {
         e.move(3);
         e.state.facing = e.state.facing.right();
         e.move(3);
-        // Should return to origin
         assertEquals(0, e.state.x);
         assertEquals(0, e.state.y);
     }
@@ -318,12 +488,11 @@ class RobotMotionTest {
     void testLShapePath() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
-        e.move(4); // north
+        e.move(4);
         e.state.facing = e.state.facing.right();
-        e.move(2); // east
+        e.move(2);
         assertEquals(2, e.state.x);
         assertEquals(4, e.state.y);
-        // Verify L-shape drawn
         assertEquals(1, e.floor.grid[0][0]);
         assertEquals(1, e.floor.grid[0][4]);
         assertEquals(1, e.floor.grid[2][4]);
@@ -338,11 +507,95 @@ class RobotMotionTest {
         e.move(3);
         e.state.facing = RobotMotion.Direction.NORTH;
         e.move(3);
-        // Cell should still be 1, not 2 or 3
         assertEquals(1, e.floor.grid[0][1]);
     }
 
-    // GRID SIZE EDGE CASES
+
+    @Test
+    void testFullRectanglePath() {
+        RobotMotion.Engine e = new RobotMotion.Engine(6);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(4);
+        assertEquals(0, e.state.x);
+        assertEquals(0, e.state.y);
+        assertEquals(1, e.floor.grid[0][0]);
+        assertEquals(1, e.floor.grid[0][4]);
+        assertEquals(1, e.floor.grid[4][4]);
+        assertEquals(1, e.floor.grid[4][0]);
+    }
+
+
+    @Test
+    void testDisjointMarksWithPenUpInBetween() {
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        e.state.penDown = true;
+        e.move(2);
+        e.state.penDown = false;
+        e.move(3);
+        e.state.penDown = true;
+        e.move(2);
+        assertEquals(1, e.floor.grid[0][0]);
+        assertEquals(1, e.floor.grid[0][2]);
+        assertEquals(0, e.floor.grid[0][3]);
+        assertEquals(0, e.floor.grid[0][4]);
+        assertEquals(1, e.floor.grid[0][5]);
+        assertEquals(1, e.floor.grid[0][7]);
+    }
+
+
+    @Test
+    void testCrossOwnPathDoesNotUnmark() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = RobotMotion.Direction.SOUTH;
+        e.move(4);
+        for (int y = 0; y <= 4; y++)
+            assertEquals(1, e.floor.grid[0][y], "Cell y=" + y + " should remain marked");
+    }
+
+
+    @Test
+    void testZigzagPath() {
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        e.state.penDown = true;
+        e.move(2);
+        e.state.facing = e.state.facing.right();
+        e.move(2);
+        e.state.facing = e.state.facing.left();
+        e.move(2);
+        e.state.facing = e.state.facing.right();
+        e.move(2);
+        assertEquals(4, e.state.x);
+        assertEquals(4, e.state.y);
+        assertEquals(1, e.floor.grid[0][0]);
+        assertEquals(1, e.floor.grid[0][2]);
+        assertEquals(1, e.floor.grid[2][2]);
+        assertEquals(1, e.floor.grid[2][4]);
+        assertEquals(1, e.floor.grid[4][4]);
+    }
+
+
+    @Test
+    void testCornerToCornerLShape() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(4);
+        for (int y = 0; y <= 4; y++)
+            assertEquals(1, e.floor.grid[0][y], "North leg y=" + y);
+        for (int x = 0; x <= 4; x++)
+            assertEquals(1, e.floor.grid[x][4], "East leg x=" + x);
+    }
+
+
 
     @Test
     void testMinimumGridSize() {
@@ -350,7 +603,7 @@ class RobotMotionTest {
         assertEquals(0, e.state.x);
         assertEquals(0, e.state.y);
         e.move(5);
-        assertEquals(0, e.state.y); // can't move on 1x1 grid
+        assertEquals(0, e.state.y);
     }
 
     @Test
@@ -360,22 +613,75 @@ class RobotMotionTest {
         assertEquals(99, e.state.y);
     }
 
-    // NEGATIVE OR INVALID INPUT (if applicable)
+
+    @Test
+    void testInitializeWithDifferentSizeCreatesCorrectGrid() {
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        assertEquals(10, e.floor.grid.length);
+        assertEquals(10, e.floor.grid[0].length);
+    }
+
+
+    @Test
+    void testLargeGridInitializesAllZeros() {
+        RobotMotion.Engine e = new RobotMotion.Engine(100);
+        for (int i = 0; i < 100; i++)
+            for (int j = 0; j < 100; j++)
+                assertEquals(0, e.floor.grid[i][j]);
+    }
+
+
+    @Test
+    void testMoveFarCornerLargeGrid() {
+        RobotMotion.Engine e = new RobotMotion.Engine(50);
+        e.state.penDown = true;
+        e.move(49);
+        e.state.facing = e.state.facing.right();
+        e.move(49);
+        assertEquals(49, e.state.x);
+        assertEquals(49, e.state.y);
+        assertEquals(1, e.floor.grid[49][49]);
+    }
+
 
     @Test
     void testNegativeMoveSteps() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        // Depending on implementation, should either throw or do nothing
-        int Before = e.state.y;
         try {
             e.move(-1);
         } catch (Exception ex) {
-            // acceptable
+            
         }
         assertTrue(e.state.y >= 0);
     }
 
-    // PRINT OR DISPLAY (smoke test)
+
+    @Test
+    void testNegativeGridSizeThrows() {
+        assertThrows(NegativeArraySizeException.class, () -> new RobotMotion.Engine(-1));
+    }
+
+
+    @Test
+    void testZeroGridSizeCreatesUnusableGrid() {
+        RobotMotion.Engine e = new RobotMotion.Engine(0);
+        assertFalse(e.floor.inBounds(0, 0));
+    }
+
+
+    @Test
+    void testNegativeMoveStepsEngineRemainsValid() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        try {
+            e.move(-5);
+        } catch (Exception ex) {
+            
+        }
+        assertTrue(e.state.x >= 0 && e.state.x <= 4);
+        assertTrue(e.state.y >= 0 && e.state.y <= 4);
+    }
+
+
 
     @Test
     void testFloorPrintDoesNotThrow() {
@@ -385,7 +691,45 @@ class RobotMotionTest {
         assertDoesNotThrow(() -> e.floor.print());
     }
 
-    // RE-INITIALIZE RESETS EVERYTHING
+    @Test
+    void testPrintOutputShowsIndicesAndCorrectAsterisksForSamplePath() {
+        RobotMotion.Engine e = new RobotMotion.Engine(10);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = e.state.facing.right();
+        e.move(3);
+        for (int y = 0; y <= 4; y++)
+            assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
+        for (int x = 0; x <= 3; x++)
+            assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
+        String out = e.floor.print();
+        assertTrue(out.contains(" 0"), "Output should include column indices");
+        assertTrue(out.contains(" 9"), "Output should include column index 9 for 10x10");
+        assertTrue(out.contains(" 4 |"), "Output should include row index 4 with separator");
+        long starCount = out.chars().filter(ch -> ch == '*').count();
+        assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
+    }
+
+
+    @Test
+    void testPrintShowsAsterisksOnlyForMarkedCells() {
+        RobotMotion.Engine e = new RobotMotion.Engine(3);
+        e.state.penDown = true;
+        e.move(2);
+        String out = e.floor.print();
+        assertTrue(out.contains("*"), "Print should show asterisks for marked cells");
+    }
+
+
+    @Test
+    void testPrintBlankFloorHasNoAsterisks() {
+        RobotMotion.Engine e = new RobotMotion.Engine(4);
+        String out = e.floor.print();
+        assertFalse(out.contains("*"), "Blank floor should have no asterisks");
+    }
+
+
+
     @Test
     void testReInitializeResetsEverything() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
@@ -393,7 +737,6 @@ class RobotMotionTest {
         e.move(3);
         e.state.facing = RobotMotion.Direction.EAST;
         e.move(2);
-        // Re-initialize with new Engine
         e = new RobotMotion.Engine(5);
         assertEquals(0, e.state.x);
         assertEquals(0, e.state.y);
@@ -404,37 +747,65 @@ class RobotMotionTest {
                 assertEquals(0, e.floor.grid[i][j]);
     }
 
-    // DRAW EAST PATH WHEN PEN DOWN
+
+    @Test
+    void testInitializeClearsGrid() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = RobotMotion.Direction.EAST;
+        e.move(4);
+        e = new RobotMotion.Engine(5);
+        for (int i = 0; i < 5; i++)
+            for (int j = 0; j < 5; j++)
+                assertEquals(0, e.floor.grid[i][j], "Cell [" + i + "][" + j + "] should be 0 after re-init");
+    }
+
+
+    @Test
+    void testSequentialInitializationsProduceCleanState() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        for (int i = 0; i < 3; i++) {
+            e.state.penDown = true;
+            e.move(3);
+            e = new RobotMotion.Engine(8);
+        }
+        assertEquals(0, e.state.x);
+        assertEquals(0, e.state.y);
+        assertFalse(e.state.penDown);
+        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
+        for (int i = 0; i < 8; i++)
+            for (int j = 0; j < 8; j++)
+                assertEquals(0, e.floor.grid[i][j]);
+    }
+
+
+
     @Test
     void testDrawEastPathWhenPenDown() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.state.facing = RobotMotion.Direction.EAST;
         e.move(3);
-        // Marks (0,0), (1,0), (2,0), (3,0)
         assertEquals(1, e.floor.grid[0][0]);
         assertEquals(1, e.floor.grid[1][0]);
         assertEquals(1, e.floor.grid[2][0]);
         assertEquals(1, e.floor.grid[3][0]);
-        assertEquals(0, e.floor.grid[4][0]); // not reached
+        assertEquals(0, e.floor.grid[4][0]);
     }
 
-    // PRINT CURRENT STATUS FORMAT
+
+
     @Test
     void testPrintCurrentStatusFormat() {
-        // The 'C' command prints: "Position: x, y - Pen: up/down - Facing: direction"
-        // Since processCommand is private static, we verify the Engine state that feeds
-        // it
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.state.facing = RobotMotion.Direction.EAST;
         e.move(2);
-        // Verify the state that 'C' command would read
         assertEquals(2, e.state.x);
         assertEquals(0, e.state.y);
         assertTrue(e.state.penDown);
         assertEquals(RobotMotion.Direction.EAST, e.state.facing);
-        // Verify status string can be constructed without error
         String status = String.format("Position: %d, %d - Pen: %s - Facing: %s",
                 e.state.x, e.state.y,
                 e.state.penDown ? "down" : "up",
@@ -444,16 +815,52 @@ class RobotMotionTest {
         assertTrue(status.contains("Facing: east"));
     }
 
-    // HISTORY REPLAY RUNS COMMANDS SINCE START
+
+    @Test
+    void testStatusStringPenUpNorthAtOrigin() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        String status = String.format("Position: %d, %d - Pen: %s - Facing: %s",
+                e.state.x, e.state.y,
+                e.state.penDown ? "down" : "up",
+                e.state.facing.name().toLowerCase());
+        assertEquals("Position: 0, 0 - Pen: up - Facing: north", status);
+    }
+
+
+    @Test
+    void testStatusStringPenDownSouth() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        e.move(4);
+        e.state.facing = RobotMotion.Direction.SOUTH;
+        String status = String.format("Position: %d, %d - Pen: %s - Facing: %s",
+                e.state.x, e.state.y,
+                e.state.penDown ? "down" : "up",
+                e.state.facing.name().toLowerCase());
+        assertEquals("Position: 0, 4 - Pen: down - Facing: south", status);
+    }
+
+
+    @Test
+    void testStatusStringPenDownWest() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.facing = RobotMotion.Direction.EAST;
+        e.move(4);
+        e.state.facing = RobotMotion.Direction.WEST;
+        e.state.penDown = true;
+        e.move(2);
+        String status = String.format("Position: %d, %d - Pen: %s - Facing: %s",
+                e.state.x, e.state.y,
+                e.state.penDown ? "down" : "up",
+                e.state.facing.name().toLowerCase());
+        assertEquals("Position: 2, 0 - Pen: down - Facing: west", status);
+    }
+
+
     @Test
     void testHistoryReplayRunsCommands() {
-        // Since history/processCommand are private static, we simulate the replay
-        // logic:
-        // Execute a sequence, then re-execute from scratch and verify same result
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         List<String> history = new ArrayList<>();
-
-        // Execute commands and record
         e.state.penDown = true;
         history.add("D");
         e.move(3);
@@ -462,11 +869,9 @@ class RobotMotionTest {
         history.add("R");
         e.move(2);
         history.add("M 2");
-
         int finalX = e.state.x;
         int finalY = e.state.y;
 
-        // Replay from scratch
         RobotMotion.Engine replay = new RobotMotion.Engine(5);
         for (String cmd : history) {
             char c = Character.toUpperCase(cmd.charAt(0));
@@ -482,89 +887,120 @@ class RobotMotionTest {
         assertEquals(finalY, replay.state.y);
     }
 
-    // HISTORY AFTER QUIT NOT REQUIRED
+
+    @Test
+    void testHistoryReplayPenUpOnlyProducesBlankFloor() {
+        RobotMotion.Engine replay = new RobotMotion.Engine(5);
+        List<String> history = List.of("M 3", "R", "M 2");
+        for (String cmd : history) {
+            char c = Character.toUpperCase(cmd.charAt(0));
+            switch (c) {
+                case 'R' -> replay.state.facing = replay.state.facing.right();
+                case 'L' -> replay.state.facing = replay.state.facing.left();
+                case 'M' -> replay.move(Integer.parseInt(cmd.substring(1).trim()));
+            }
+        }
+        for (int i = 0; i < 5; i++)
+            for (int j = 0; j < 5; j++)
+                assertEquals(0, replay.floor.grid[i][j], "Floor should be blank when pen was never down");
+    }
+
+
+    @Test
+    void testHistoryReplayProducesIdenticalFloor() {
+        RobotMotion.Engine original = new RobotMotion.Engine(5);
+        original.state.penDown = true;
+        original.move(3);
+        original.state.facing = original.state.facing.right();
+        original.move(3);
+
+        RobotMotion.Engine replay = new RobotMotion.Engine(5);
+        replay.state.penDown = true;
+        replay.move(3);
+        replay.state.facing = replay.state.facing.right();
+        replay.move(3);
+
+        for (int i = 0; i < 5; i++)
+            for (int j = 0; j < 5; j++)
+                assertEquals(original.floor.grid[i][j], replay.floor.grid[i][j],
+                        "Replay floor should match original at [" + i + "][" + j + "]");
+    }
+
     @Test
     void testHistoryAfterQuitNotRequired() {
-        // 'Q' calls System.exit(0), so history after quit is inherently not possible.
-        // We just verify the engine state is consistent before quit would be invoked.
         RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.move(2);
-        // State is valid right before quit
         assertEquals(0, e.state.x);
         assertEquals(2, e.state.y);
         assertTrue(e.state.penDown);
-        // No further assertions needed — Q terminates the program
     }
 
-    // INVALID COMMAND HANDLED GRACEFULLY
+
+
     @Test
     void testInvalidCommandHandledGracefully() {
-        // processCommand handles invalid via default -> "Invalid command" print
-        // Since it's private static, we verify Engine doesn't crash on bad state
-        // manipulation
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        // Engine should remain stable regardless of external command parsing
         assertDoesNotThrow(() -> e.move(3));
         assertEquals(3, e.state.y);
-        // Verify the command parser's first-char logic won't crash
         assertDoesNotThrow(() -> Character.toUpperCase('Z'));
         assertDoesNotThrow(() -> Character.toUpperCase(' '));
     }
 
-    // INVALID INITIALIZE SIZE REJECTED
     @Test
     void testInvalidInitializeSizeRejected() {
-        // 'I 0' or 'I -5' would create a 0 or negative sized grid
-        // Current implementation: new Floor(n) with n<=0 creates int[n][n] which throws
         assertThrows(NegativeArraySizeException.class, () -> new RobotMotion.Engine(-5));
-        // Zero-size grid — may not throw but is functionally invalid
         RobotMotion.Engine e0 = new RobotMotion.Engine(0);
-        assertFalse(e0.floor.inBounds(0, 0)); // nothing is in bounds
+        assertFalse(e0.floor.inBounds(0, 0));
     }
 
-    // INVALID MOVE VALUE REJECTED
     @Test
     void testInvalidMoveValueRejected() {
         RobotMotion.Engine e = new RobotMotion.Engine(5);
-        // Negative steps: for loop `i < steps` won't execute when steps < 0
         e.move(-1);
         assertEquals(0, e.state.x);
         assertEquals(0, e.state.y);
-        // Position should remain valid
         assertTrue(e.state.x >= 0 && e.state.y >= 0);
     }
 
+
     @Test
-    void testPrintOutputShowsIndicesAndCorrectAsterisksForSamplePath() {
-        RobotMotion.Engine e = new RobotMotion.Engine(10);
+    void testNoCellExceedsOneAfterRepeatedMoves() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
+        e.state.penDown = true;
+        for (int i = 0; i < 5; i++) {
+            e.move(4);
+            e.state.facing = RobotMotion.Direction.SOUTH;
+            e.move(4);
+            e.state.facing = RobotMotion.Direction.NORTH;
+        }
+        for (int i = 0; i < 5; i++)
+            for (int j = 0; j < 5; j++)
+                assertTrue(e.floor.grid[i][j] <= 1, "Cell [" + i + "][" + j + "] should never exceed 1");
+    }
+
+
+    @Test
+    void testNoCellIsNegative() {
+        RobotMotion.Engine e = new RobotMotion.Engine(5);
         e.state.penDown = true;
         e.move(4);
         e.state.facing = e.state.facing.right();
-        e.move(3);
-        for (int y = 0; y <= 4; y++) {
-            assertEquals(1, e.floor.grid[0][y], "Expected marked cell at (0," + y + ")");
-        }
-        for (int x = 0; x <= 3; x++) {
-            assertEquals(1, e.floor.grid[x][4], "Expected marked cell at (" + x + ",4)");
-        }
-        String out = e.floor.print();
-        assertTrue(out.contains(" 0"), "Output should include column indices");
-        assertTrue(out.contains(" 9"), "Output should include column indices up to 9 for 10x10");
-        assertTrue(out.contains(" 4 |"), "Output should include row index with separator like ' 4 |'");
-        long starCount = out.chars().filter(ch -> ch == '*').count();
-        assertEquals(8, starCount, "Expected exactly 8 traced cells printed as '*'");
+        e.move(4);
+        for (int i = 0; i < 5; i++)
+            for (int j = 0; j < 5; j++)
+                assertTrue(e.floor.grid[i][j] >= 0, "Cell [" + i + "][" + j + "] should never be negative");
     }
 
-    // Task-2 Starts
+
+
+
     @Test
     void testProcessCommandRecordsHistoryWhenRecordTrue() {
         assertEquals(0, getHistory().size());
-
         invokeCmd("D", true);
         invokeCmd("M 2", true);
         invokeCmd("R", true);
-
         assertEquals(3, getHistory().size());
         assertEquals("D", getHistory().get(0));
         assertEquals("M 2", getHistory().get(1));
@@ -582,9 +1018,7 @@ class RobotMotionTest {
     void testCommandDMarksCurrentCell() {
         RobotMotion.Engine e = getEngine();
         assertEquals(0, e.floor.grid[0][0]);
-
-        invokeCmd("D", true); // pen down + mark start cell
-
+        invokeCmd("D", true);
         e = getEngine();
         assertTrue(e.state.penDown);
         assertEquals(1, e.floor.grid[0][0], "D should mark the starting cell");
@@ -594,48 +1028,35 @@ class RobotMotionTest {
     void testCommandUMakesPenUp() {
         invokeCmd("D", true);
         assertTrue(getEngine().state.penDown);
-
         invokeCmd("U", true);
         assertFalse(getEngine().state.penDown);
     }
 
     @Test
     void testCommandLAndRChangeFacing() {
-        RobotMotion.Engine e = getEngine();
-        assertEquals(RobotMotion.Direction.NORTH, e.state.facing);
-
+        assertEquals(RobotMotion.Direction.NORTH, getEngine().state.facing);
         invokeCmd("R", true);
         assertEquals(RobotMotion.Direction.EAST, getEngine().state.facing);
-
         invokeCmd("L", true);
         assertEquals(RobotMotion.Direction.NORTH, getEngine().state.facing);
-
         invokeCmd("L", true);
         assertEquals(RobotMotion.Direction.WEST, getEngine().state.facing);
     }
 
     @Test
     void testCommandMMovesRobot() {
-        RobotMotion.Engine e = getEngine();
-        assertEquals(0, e.state.x);
-        assertEquals(0, e.state.y);
-
+        assertEquals(0, getEngine().state.x);
+        assertEquals(0, getEngine().state.y);
         invokeCmd("M 3", true);
-
-        e = getEngine();
-        assertEquals(0, e.state.x);
-        assertEquals(3, e.state.y);
+        assertEquals(0, getEngine().state.x);
+        assertEquals(3, getEngine().state.y);
     }
 
     @Test
     void testCommandPPrintsFloor() {
-        // draw something first
         invokeCmd("D", true);
         invokeCmd("M 2", true);
-
         String out = captureStdout(() -> invokeCmd("P", true));
-
-        // Should print the grid header with column indices
         assertTrue(out.contains(" 0"), "P should print floor with indices");
         assertTrue(out.contains("|"), "P output should contain row separators");
     }
@@ -645,9 +1066,7 @@ class RobotMotionTest {
         invokeCmd("D", true);
         invokeCmd("R", true);
         invokeCmd("M 2", true);
-
         String out = captureStdout(() -> invokeCmd("C", true));
-
         assertTrue(out.contains("Position:"), "C should print status");
         assertTrue(out.toLowerCase().contains("pen:"), "C should print pen state");
         assertTrue(out.toLowerCase().contains("facing:"), "C should print facing direction");
@@ -655,13 +1074,10 @@ class RobotMotionTest {
 
     @Test
     void testCommandIReinitializesEngineSize() {
-        // move first so state changes
         invokeCmd("D", true);
         invokeCmd("M 3", true);
         assertEquals(3, getEngine().state.y);
-
-        invokeCmd("I 5", true); // new engine with size 5
-
+        invokeCmd("I 5", true);
         RobotMotion.Engine e = getEngine();
         assertEquals(0, e.state.x);
         assertEquals(0, e.state.y);
@@ -676,38 +1092,102 @@ class RobotMotionTest {
 
     @Test
     void testInvalidMoveArgumentTriggersErrorCatch() {
-        // This must go through the catch(Exception e) block in processCommand
         String out = captureStdout(() -> invokeCmd("M abc", true));
-        assertTrue(out.toLowerCase().contains("error:"), "Should print Error: ... for invalid integer");
+        assertTrue(out.toLowerCase().contains("error:"), "Should print Error: for invalid integer");
     }
 
     @Test
     void testHistoryReplayHReplaysCommandsFromStart() {
-        // Build history with record=true
         invokeCmd("D", true);
         invokeCmd("M 3", true);
         invokeCmd("R", true);
         invokeCmd("M 2", true);
-
-        // At this point, engine should be at (2,3)
         assertEquals(2, getEngine().state.x);
         assertEquals(3, getEngine().state.y);
-
-        // Now execute H: it resets engine and replays history (record=false during
-        // replay)
         String out = captureStdout(() -> invokeCmd("H", true));
-
-        // after replay, engine should end up same final position
         assertEquals(2, getEngine().state.x);
         assertEquals(3, getEngine().state.y);
-
-        // Also verify it printed the replay messages
         assertTrue(out.contains(">Replaying:"), "H should print replay lines");
-
-        // History should still contain original commands + "H" (because record=true on
-        // H)
         assertTrue(getHistory().contains("H"));
     }
-    // Task-2 Ends
+
+    @Test
+    void testHCommandResetsAndReplaysCorrectFloor() {
+        invokeCmd("D", true);
+        invokeCmd("M 2", true);
+        
+        assertEquals(1, getEngine().floor.grid[0][0]);
+        assertEquals(1, getEngine().floor.grid[0][2]);
+       
+        captureStdout(() -> invokeCmd("H", true));
+      
+        assertEquals(1, getEngine().floor.grid[0][0]);
+        assertEquals(1, getEngine().floor.grid[0][2]);
+    }
+
+  
+    @Test
+    void testHistoryGrowsWithEachCommand() {
+        assertEquals(0, getHistory().size());
+        invokeCmd("D", true);
+        assertEquals(1, getHistory().size());
+        invokeCmd("M 1", true);
+        assertEquals(2, getHistory().size());
+        invokeCmd("R", true);
+        assertEquals(3, getHistory().size());
+        invokeCmd("U", true);
+        assertEquals(4, getHistory().size());
+    }
+
+
+    @Test
+    void testICommandAfterMovementResetsPosToOrigin() {
+        invokeCmd("D", true);
+        invokeCmd("M 4", true);
+        assertEquals(4, getEngine().state.y);
+        invokeCmd("I 10", true);
+        assertEquals(0, getEngine().state.x);
+        assertEquals(0, getEngine().state.y);
+        assertFalse(getEngine().state.penDown);
+    }
+
+    @Test
+    void testCCommandAfterIShowsResetPosition() {
+        invokeCmd("D", true);
+        invokeCmd("M 3", true);
+        invokeCmd("I 10", true);
+        String out = captureStdout(() -> invokeCmd("C", true));
+        assertTrue(out.contains("Position: 0, 0"), "After I, position should be 0,0");
+        assertTrue(out.toLowerCase().contains("pen: up"), "After I, pen should be up");
+        assertTrue(out.toLowerCase().contains("facing: north"), "After I, facing should be north");
+    }
+
+   
+    @Test
+    void testUCommandIsRecordedInHistory() {
+        invokeCmd("D", true);
+        invokeCmd("U", true);
+        assertTrue(getHistory().contains("U"), "U should be recorded in history");
+        assertTrue(getHistory().contains("D"), "D should be recorded in history");
+    }
+
+
+    @Test
+    void testLowercaseCommandDWorksLikeDUppercase() {
+        invokeCmd("d", true);
+        assertTrue(getEngine().state.penDown, "Lowercase 'd' should set pen down");
+    }
+
+    @Test
+    void testLowercaseCommandRWorksLikeRUppercase() {
+        invokeCmd("r", true);
+        assertEquals(RobotMotion.Direction.EAST, getEngine().state.facing, "Lowercase 'r' should turn right");
+    }
+
+    @Test
+    void testLowercaseCommandMWorksLikeMUppercase() {
+        invokeCmd("m 3", true);
+        assertEquals(3, getEngine().state.y, "Lowercase 'm 3' should move robot north 3");
+    }
 
 }
