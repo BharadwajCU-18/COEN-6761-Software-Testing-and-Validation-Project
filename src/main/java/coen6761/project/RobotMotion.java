@@ -6,6 +6,8 @@ import java.util.List;
 
 public class RobotMotion {
 
+    public static boolean stopExecution = false;
+
     /* Direction */
     enum Direction {
         NORTH(0, 1), EAST(1, 0), SOUTH(0, -1), WEST(-1, 0);
@@ -117,8 +119,10 @@ public class RobotMotion {
 
         System.out.println("Robot Motion Simulator");
 
-        while (true) {
+        while (!stopExecution) {
             System.out.print(">Enter command: ");
+            if (!sc.hasNextLine())
+                break;
             String line = sc.nextLine().trim();
             if (line.isEmpty())
                 continue;
@@ -128,6 +132,9 @@ public class RobotMotion {
     }
 
     private static void processCommand(String line, boolean record) {
+        line = line.trim();
+        if (line.isEmpty())
+            return;
         char cmd = Character.toUpperCase(line.charAt(0));
 
         try {
@@ -157,7 +164,7 @@ public class RobotMotion {
                 case 'I' -> engine = new Engine(Integer.parseInt(line.substring(1).trim()));
                 case 'Q' -> {
                     System.out.println("End of program");
-                    System.exit(0);
+                    stopExecution = true;
                 }
                 default -> System.out.println("Invalid command");
             }
