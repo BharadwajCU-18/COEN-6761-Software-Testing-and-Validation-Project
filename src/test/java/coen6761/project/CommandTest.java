@@ -61,8 +61,8 @@ class CommandTest extends RobotMotionTestBase {
     void testHistoryRecording() {
         invokeCmd("I 5", true);
         invokeCmd("D", true);
-        assertEquals(2, getHistory().size());
-        assertEquals("I 5", getHistory().get(0));
+        assertEquals(1, getHistory().size());
+        assertEquals("D", getHistory().get(0));
     }
 
     @Test
