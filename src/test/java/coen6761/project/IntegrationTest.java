@@ -50,6 +50,6 @@ class IntegrationTest extends RobotMotionTestBase {
         assertEquals(2, getEngine().state.x);
         assertEquals(3, getEngine().state.y);
         assertTrue(out.contains(">Replaying:"));
-        assertTrue(getHistory().contains("H"));
+        assertFalse(getHistory().contains("H"));
     }
 }

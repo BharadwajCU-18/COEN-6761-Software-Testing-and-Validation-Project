@@ -161,14 +161,17 @@ public class RobotMotion {
                         processCommand(h, false);
                     }
                 }
-                case 'I' -> engine = new Engine(Integer.parseInt(line.substring(1).trim()));
+                case 'I' -> {
+                    engine = new Engine(Integer.parseInt(line.substring(1).trim()));
+                    history.clear();
+                }
                 case 'Q' -> {
                     System.out.println("End of program");
                     stopExecution = true;
                 }
                 default -> System.out.println("Invalid command");
             }
-            if (record) {
+            if (record && cmd != 'H' && cmd != 'Q' && cmd != 'I') {
                 history.add(line);
             }
         } catch (Exception e) {
